@@ -1,13 +1,13 @@
 import { matrix1 } from "./matrix.js";
-var socket
-function connect() {
-    socket = new WebSocket('ws://10.20.219.170:8081/')
-    socket.onclose = function() { connect(); };
-}
-connect()
+
+const socket = new WebSocket("ws://localhost:8081/ws");
+socket.addEventListener("error", (event) => {
+    console.log("WebSocket error: ", event);
+  });
+// Event handler when the WebSocket connection is opened.
 socket.onopen = () => {
-    console.log("Websocket connection opened");
-}
+    console.log("WebSocket connection opened");
+};
 var solidIndexes
 socket.onmessage = (event) => {
     const message = JSON.parse(event.data)
@@ -70,29 +70,32 @@ function createMaze() {
         mazeContainer.appendChild(cell);
     }
 }
-function createUser(position,ID) {
-    const user = document.createElement("div");
-    user.classList.add("user");
-    user.innerHTML = `<p>${ID}</p>`
+function createUser(position, ID) {
+    var _user = document.createElement("div");
+    _user.classList.add("user");
+   // _user.innerHTML = `<p>${ID}</p>`;
     const mazeContainer = document.getElementById("maze-container");
-    mazeContainer.appendChild(user);
-    // user.style.left = "0px";
-    // user.style.top = "0px";
-  
-    const x = Math.floor(position%32) 
-    const y = Math.floor(position/32) 
-    console.log("x: " + x + " y: " + y)
-    user.style.left = 20*x + "px";
-    user.style.top = 20*y + "px";
+    mazeContainer.appendChild(_user);
+
+    const x = Math.floor(position % 32);
+    const y = Math.floor(position / 32);
+    console.log('type of x', typeof(x))
+    // console.log("x: " + x + " y: " + y);
+    // console.log("x: " + x + " y: " + y);
+    // console.log("x*20")
+    _user.style.position = "absolute";
+    _user.style.left = (20 * x) + "px";
+    _user.style.top = (20 * y) + "px";
+
 }
-var flag = true;
+
 
 document.addEventListener("DOMContentLoaded", function() {
    
     // Event listener for arrow key presses
     document.addEventListener("keydown", event => {
         event.preventDefault();
-        const step = 0;
+        const step = 20;
         switch (event.key) {
             case "ArrowLeft":
                 moveLeft(step);
@@ -112,29 +115,29 @@ document.addEventListener("DOMContentLoaded", function() {
     });
     
 });
-var user 
+// var user 
 
 
 function moveLeft(step) {
-    user = document.querySelector(".user");
+    const user = document.querySelector(".user");
     const currentPosition = parseInt(user.style.left) || 0;
     user.style.left = currentPosition - step + "px";
 }
 
 function moveRight(step) {
-    user = document.querySelector(".user");
+    const user = document.querySelector(".user");
     const currentPosition = parseInt(user.style.left) || 0;
     user.style.left = currentPosition + step + "px";
 }
 
 function moveUp(step) {
-    user = document.querySelector(".user");
+    const user = document.querySelector(".user");
     const currentPosition = parseInt(user.style.top) || 0;
     user.style.top = currentPosition - step + "px";
 }
 
 function moveDown(step) {
-    user = document.querySelector(".user");
+    const user = document.querySelector(".user");
     const currentPosition = parseInt(user.style.top) || 0;
     user.style.top = currentPosition + step + "px";
 }

@@ -38,9 +38,10 @@ body {
     background-color: #52d38c;
     display: flex !important;
     position: absolute;
-    top:0;
-    left:0;
+    /* margin-top:100px; */
+    /* right:10px; */
     z-index: 100;
+    /* margin-left: 100px; */
 }
 
 

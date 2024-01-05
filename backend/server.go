@@ -28,24 +28,56 @@ type Client struct {
 	Send  chan Message // Channel for sending messages to the client
 	Status string
 }
+type Message interface {
+    GetType() string
+}
 type Competitor struct {
 	ID   int
 	Position int
 	Score int
 	Status string
+	Direction string
+	BulletCooldown int
+	Color string
 }
-
+type Bullet struct {
+	ID int
+	Position int
+	Direction string
+}
 type Matrix struct {
 	Positions []int `json:"matrix"`
 }
-type Message struct {
+type AssigningPositionMessage struct {
     Type    string `json:"type"`
-    Content string `json:"content"`
-	ClientID int `json:"clientId"`
-	Position int `json:"position"`
-	Score int `json:"score"`
+	ClientInfo Competitor  `json:"clientInfo"`
 	Matrix Matrix `json:"matrix"`
 	Competitors map[int]*Competitor `json:"competitors"`
+}
+func (m AssigningPositionMessage) GetType() string {
+	return m.Type
+}
+type UpdatingCompetitorInfoMessage struct {
+	Type    string `json:"type"`
+	ClientInfo Competitor  `json:"clientInfo"`
+}
+func (m UpdatingCompetitorInfoMessage) GetType() string {
+	return m.Type
+}
+type UpdatingBulletInfoMessage struct {
+	Type    string `json:"type"`
+	ClientInfo Competitor  `json:"clientInfo"`
+	BulletInfo Bullet `json:"bulletInfo"`
+}
+func (m UpdatingBulletInfoMessage) GetType() string {
+	return m.Type
+}
+type UpdatingStatusMessage struct{
+	Type    string `json:"type"`
+	StatusContent string `json:"statusContent"`
+}
+func (m UpdatingStatusMessage) GetType() string {
+	return m.Type
 }
 var clients = make(map[int]*Client)
 var competitors = make(map[int]*Competitor)
