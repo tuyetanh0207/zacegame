@@ -93,12 +93,8 @@ func handleClient(client *Client) {
         delete(clients, client.ID)
         close(client.Send)
     }()
-	message := Message{
-		ClientID: client.ID, 
+	message :=AssigningPositionMessage{
 		Type:"AssignPosition",
-		Content: "Nothings",
-		Position: 39,
-		Score: 0,
 		Matrix: matrix,
 		Competitors: competitors,
 	}
@@ -107,22 +103,57 @@ func handleClient(client *Client) {
 		log.Printf("Error sending message to client %d: %v\n", client.ID, err)
 		return
 	}
+	go func() {
+		for {
+			select {
+			case message, ok := <-client.Send:
+				if !ok {
+					return
+				}
 
-    // for {
-    //     select {
-    //     case message, ok := <-client.Send:
-    //         if !ok {
-    //             return
-    //         }
+				err := client.Conn.WriteJSON(message)
+				if err != nil {
+					log.Printf("Error sending message to client %d: %v\n", client.ID, err)
+					return
+				}
+			}
+		}
+	}()
+    for {
+        _, p, err := client.Conn.ReadMessage()
+        if err != nil {
+            log.Printf("Client %d disconnected\n", client.ID)
+            delete(clients, client.ID)
+            return
+        }
 
-    //         err := client.Conn.WriteJSON(message)
-    //         if err !
-	//= nil {
-    //             log.Printf("Error sending message to client %d: %v\n", client.ID, err)
-    //             return
-    //         }
-    //     }
-    // }
+        // Unmarshal the received JSON into a generic map
+        var rawData map[string]interface{}
+        if err := json.Unmarshal(p, &rawData); err != nil {
+            log.Printf("Error unmarshalling JSON from client %d: %v\n", client.ID, err)
+            continue
+        }
+
+        // Extract the message type
+        messageType, ok := rawData["type"].(string)
+        if !ok {
+            log.Printf("Error extracting message type from client %d\n", client.ID)
+            continue
+        }
+
+        // Handle different message types
+        switch messageType {
+        case "move":
+            // Handle move message
+            // Example: client.Move(rawData["direction"].(string))
+        case "shoot":
+            // Handle shoot message
+            // Example: client.Shoot(rawData["direction"].(string))
+        // Add more cases for other message types as needed
+        default:
+            log.Printf("Unknown message type from client %d: %s\n", client.ID, messageType)
+        }
+    }
 }
 
 // handleConnections handles WebSocket connections.
@@ -141,7 +172,6 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 		Score: 0,
 		Position: 39,
 		Send:     make(chan Message),
-
 	}
 	competitor := &Competitor{
 		ID:   nextCompetitorID,
@@ -149,10 +179,9 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 		Position: 39,
 		Status: "Active",
 	}
-	fmt.Println("client", client.ID, client.Score, client.Position)
-	fmt.Println("competitor", competitor.ID, competitor.Score)
-
 	
+	// fmt.Println("client", client.ID, client.Score, client.Position)
+	// fmt.Println("competitor", competitor.ID, competitor.Score)
 	nextClientID++
 	nextCompetitorID++
 	fmt.Println("nextClientID", nextClientID)
@@ -160,45 +189,12 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 	clients[client.ID] = client
 	competitors[competitor.ID] = competitor
 	fmt.Printf("Client %d connected\n", client.ID)
-	message := Message{
-        ClientID:    client.ID,
-        Type:        "AssignPosition",
-        Content:     "Nothings",
-        Position:    39,
-        Score:       0,
-        Matrix:      matrix,
-        Competitors: competitors,
-    }
-	
-	err = client.Conn.WriteJSON(message)
-    if err != nil {
-        log.Printf("Error sending message to client %d: %v\n", client.ID, err)
-        return
-    }
-	
 	
 
-	for _, otherClient := range clients {
-		if otherClient.ID != client.ID {
-			err := otherClient.Conn.WriteJSON(message)
-			if err != nil {
-				log.Printf("Error broadcasting message to client %d: %v\n", otherClient.ID, err)
-			}
-		}
-	}
-	//go handleClient(client)
-		
-	for {
-		messageType, p, err := conn.ReadMessage()
-		if err != nil {
-			log.Printf("Client %d disconnected\n", client.ID)
-			delete(clients, client.ID)
-			return
-		}
-
-		fmt.Printf("Received from client %d: %s\n", messageType, client.ID, p)
-
-		//Broadcast the message to all connected clients
+	go handleClient(client)
+	
+}
+	// //Broadcast the message to all connected clients
 		// for _, otherClient := range clients {
 		// 	if otherClient.ID != client.ID {
 		// 		err := otherClient.Conn.WriteJSON(message)
@@ -207,8 +203,19 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 		// 		}
 		// 	}
 		// }
+func BroadcastMessage(exceptedClientID int, message Message) {
+	for _, client := range clients {
+		if client.ID != exceptedClientID {
+			select {
+			case client.Send <- message:
+			default:
+				close(client.Send)
+				delete(clients, client.ID)
+			}
+		}
 	}
 }
+		
 func loadConfig(filename string) (Matrix, error) {
 	var matrix Matrix
 
