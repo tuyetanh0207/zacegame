@@ -9,8 +9,9 @@ import (
 	"encoding/json"
 	"io"
 	// "strconv"
-	// "math/rand"
+	"math/rand"
 	// "time"
+	"sort"
 )
 
 var upgrader = websocket.Upgrader{
@@ -84,25 +85,108 @@ var competitors = make(map[int]*Competitor)
 var nextClientID = 1
 var nextCompetitorID = 1
 var matrix Matrix
+var gridWidth = 32
+var gridHeight = 16
 // func randomPositionForClient () int{
 
 // }
+
+func isPositionOccupiedByCompetitor(position int) bool {
+	if _, ok := competitors[position]; ok {
+		// fmt.Printf("Competitor position: %d\n", competitor.Position)
+		return true // Position is occupied
+	}
+	return false // Position is not occupied
+}
+
+func containsElement(arr []int, target int) bool {
+	index := sort.Search(len(arr), func(i int) bool {
+		return arr[i] >= target
+	})
+
+	return index < len(arr) && arr[index] == target
+}
+func isCurrentPositionOccupiedByWall(currPosition int) bool {
+	// fmt.Printf("Direction: %s\n", direction)
+	return containsElement(matrix.Positions, currPosition);
+}
+func isNewPositionOccupiedByWall(currPosition int, direction string) bool {
+	// fmt.Printf("Direction: %s\n", direction)
+	newPosition := determineNewPositionByDirection(currPosition, direction)
+	// fmt.Printf("New Position: %d\n", newPosition)
+
+	switch direction {
+	case "Up":
+		if newPosition >= 0 && !isCurrentPositionOccupiedByWall(newPosition){
+			return false
+		}
+	case "Down":
+		if newPosition < 32*16 && !isCurrentPositionOccupiedByWall(newPosition){
+			return false
+		}
+	case "Left":
+		if currPosition%32 != 0 && !isCurrentPositionOccupiedByWall(newPosition) {
+			return false
+		}
+	case "Right":
+		if currPosition%32 != 31 && !isCurrentPositionOccupiedByWall(newPosition) {
+			return false
+		}
+	}
+	return true
+}
+func determineNewPositionByDirection(currPosition int, direction string) int {
+	switch direction {
+	case "Up":
+		return currPosition - 32
+	case "Down":
+		return currPosition + 32
+	case "Left":
+		return currPosition - 1
+	case "Right":
+		return currPosition + 1
+	}
+	return currPosition
+}
+
+func randomPositionForClient() (Position int, Direction string){
+	randomX := rand.Intn(gridWidth)
+	randomY := rand.Intn(gridHeight)
+	position := randomX + randomY*gridWidth
+	for {
+		if(!isPositionOccupiedByCompetitor(position) && !isCurrentPositionOccupiedByWall(position)) {
+			break;
+		}
+		randomX = rand.Intn(gridWidth)
+		randomY = rand.Intn(gridHeight)
+		position = randomX + randomY*gridWidth
+		
+	}
+
+	// Generate a random direction (e.g., "north", "south", "east", "west")
+	directions := []string{"Left", "Right", "Up", "Down"}
+	randomDirection := directions[rand.Intn(len(directions))]
+	for {
+
+		if(!isNewPositionOccupiedByWall(position, randomDirection)) {
+			break;
+		} 
+		randomDirection = directions[rand.Intn(len(directions))]
+		
+
+	}
+	return position, randomDirection
+}
+
+	
 func handleClient(client *Client) {
-    defer func() {
-        log.Printf("Client %d disconnected\n", client.ID)
-        delete(clients, client.ID)
-        close(client.Send)
-    }()
-	message :=AssigningPositionMessage{
-		Type:"AssignPosition",
-		Matrix: matrix,
-		Competitors: competitors,
-	}
-	err := client.Conn.WriteJSON(message)
-	if err != nil {
-		log.Printf("Error sending message to client %d: %v\n", client.ID, err)
-		return
-	}
+		defer func() {
+		log.Printf("Client %d disconnected\n", client.ID)
+		delete(clients, client.ID)
+		delete(competitors, client.ID)
+		close(client.Send)
+	}()
+	
 	go func() {
 		for {
 			select {
@@ -110,7 +194,7 @@ func handleClient(client *Client) {
 				if !ok {
 					return
 				}
-
+		
 				err := client.Conn.WriteJSON(message)
 				if err != nil {
 					log.Printf("Error sending message to client %d: %v\n", client.ID, err)
@@ -119,43 +203,43 @@ func handleClient(client *Client) {
 			}
 		}
 	}()
-    for {
-        _, p, err := client.Conn.ReadMessage()
-        if err != nil {
-            log.Printf("Client %d disconnected\n", client.ID)
-            delete(clients, client.ID)
-            return
-        }
+	for {
+		_, p, err := client.Conn.ReadMessage()
+		if err != nil {
+			log.Printf("Client %d disconnected\n", client.ID)
+			delete(clients, client.ID)
+			delete(competitors, client.ID)
+			return
+		}
 
-        // Unmarshal the received JSON into a generic map
-        var rawData map[string]interface{}
-        if err := json.Unmarshal(p, &rawData); err != nil {
-            log.Printf("Error unmarshalling JSON from client %d: %v\n", client.ID, err)
-            continue
-        }
+		// Unmarshal the received JSON into a generic map
+		var rawData map[string]interface{}
+		if err := json.Unmarshal(p, &rawData); err != nil {
+			log.Printf("Error unmarshalling JSON from client %d: %v\n", client.ID, err)
+			continue
+		}
 
-        // Extract the message type
-        messageType, ok := rawData["type"].(string)
-        if !ok {
-            log.Printf("Error extracting message type from client %d\n", client.ID)
-            continue
-        }
+		// Extract the message type
+		messageType, ok := rawData["type"].(string)
+		if !ok {
+			log.Printf("Error extracting message type from client %d\n", client.ID)
+			continue
+		}
 
-        // Handle different message types
-        switch messageType {
-        case "move":
-            // Handle move message
-            // Example: client.Move(rawData["direction"].(string))
-        case "shoot":
-            // Handle shoot message
-            // Example: client.Shoot(rawData["direction"].(string))
-        // Add more cases for other message types as needed
-        default:
-            log.Printf("Unknown message type from client %d: %s\n", client.ID, messageType)
-        }
-    }
+		// Handle different message types
+		switch messageType {
+		case "move":
+			// Handle move message
+			// Example: client.Move(rawData["direction"].(string))
+		case "shoot":
+			// Handle shoot message
+			// Example: client.Shoot(rawData["direction"].(string))
+		// Add more cases for other message types as needed
+		default:
+			log.Printf("Unknown message type from client %d: %s\n", client.ID, messageType)
+		}
+	}
 }
-
 // handleConnections handles WebSocket connections.
 func handleConnections(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("Handling WebSocket connection...")
@@ -165,45 +249,70 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer conn.Close()
-
+	//conn.SetReadDeadline(time.Now().Add(1 * time.Hour))
+	randomPosition, randomDirection := randomPositionForClient();
+	//randomPosition, randomDirection := 12, "Right";
 	client := &Client{
 		ID:   nextClientID,
 		Conn: conn,
 		Score: 0,
-		Position: 39,
+		Position: randomPosition,
 		Send:     make(chan Message),
 	}
 	competitor := &Competitor{
 		ID:   nextCompetitorID,
 		Score: 0,
-		Position: 39,
+		Position: randomPosition,
 		Status: "Active",
+		Direction: randomDirection,
 	}
 	
 	// fmt.Println("client", client.ID, client.Score, client.Position)
 	// fmt.Println("competitor", competitor.ID, competitor.Score)
 	nextClientID++
 	nextCompetitorID++
-	fmt.Println("nextClientID", nextClientID)
-	fmt.Println("nextCompetitorID", nextCompetitorID)
+	// fmt.Println("nextClientID", nextClientID)
+	// fmt.Println("nextCompetitorID", nextCompetitorID)
 	clients[client.ID] = client
 	competitors[competitor.ID] = competitor
 	fmt.Printf("Client %d connected\n", client.ID)
-	
-
+	assigningPositionMessage :=AssigningPositionMessage{
+		Type:"assignPositionForNewClient",
+		Matrix: matrix,
+		ClientInfo: *competitor,
+		Competitors: competitors,
+	}
+	err = conn.WriteJSON(assigningPositionMessage)
+	if err != nil {
+		log.Printf("Error sending message to client %d: %v\n", client.ID, err)
+		return
+	}
+	updatingCompetitorInfoMessage := UpdatingCompetitorInfoMessage{
+		Type:"hasNewClient",
+		ClientInfo: *competitor,
+	}
 	go handleClient(client)
+	BroadcastMessage(client.ID, updatingCompetitorInfoMessage);
+	
+	for {
+		_, p, err := conn.ReadMessage()
+		if err != nil {
+			log.Printf("Client %d disconnected\n", client.ID)
+			delete(clients, client.ID)
+			delete(competitors, client.ID)
+
+			return
+		}
+
+		fmt.Printf("Received from client %d: %s\n", client.ID, p)
+
+	}
+	
 	
 }
-	// //Broadcast the message to all connected clients
-		// for _, otherClient := range clients {
-		// 	if otherClient.ID != client.ID {
-		// 		err := otherClient.Conn.WriteJSON(message)
-		// 		if err != nil {
-		// 			log.Printf("Error broadcasting message to client %d: %v\n", otherClient.ID, err)
-		// 		}
-		// 	}
-		// }
+
 func BroadcastMessage(exceptedClientID int, message Message) {
+	fmt.Println("broadcasting message to client")
 	for _, client := range clients {
 		if client.ID != exceptedClientID {
 			select {
@@ -211,6 +320,7 @@ func BroadcastMessage(exceptedClientID int, message Message) {
 			default:
 				close(client.Send)
 				delete(clients, client.ID)
+				delete(competitors, client.ID)
 			}
 		}
 	}

@@ -42,8 +42,22 @@ body {
     /* right:10px; */
     z-index: 100;
     /* margin-left: 100px; */
-}
+    transform: none !;
 
+    
+}
+.Left{
+    transform: none !important;
+}
+.Right{
+    transform: translateX(80%) !important;
+}
+.Down{
+    transform: rotate(-1.52rad)  translateY(10%) translateX(-10%) !important;
+}
+.Up{
+    transform: rotate(1.6rad) translateY(-10%) translateX(-28%) !important;
+}
 
 #status {
     margin-top: 20px;
