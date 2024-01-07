@@ -14,7 +14,7 @@ var competitors
 var bulletCount = 0;
 var clientCooldownTime = 200
 var bulletCooldownTime = clientCooldownTime * 6
-
+var cellWidth = 30
 socket.onmessage = (event) => {
     const message = JSON.parse(event.data)
     console.log('message: ', message)
@@ -30,8 +30,7 @@ socket.onmessage = (event) => {
     const currentPosition= clientInfo.Position
     console.log('id', ID)
     console.log(messageType, clientInfo.ID, currentPosition, ID, currentPosition)
-    output.innerHTML += `<p>${message}</p>`;
-    output.scrollTop = output.scrollHeight; // Auto-scroll to the bottom
+    
     if(messageType === "assignPositionForNewClient") {
         const matrix = message.matrix.matrix;
         const bullets = message.bullets
@@ -169,8 +168,8 @@ function createUser(ID, position, direction) {
     console.log('type of x', typeof(x))
 
     _user.style.position = "absolute";
-    _user.style.left = (20 * x) + "px";
-    _user.style.top = (20 * y) + "px";
+    _user.style.left = (cellWidth * x) + "px";
+    _user.style.top = (cellWidth * y) + "px";
 
 }
 function createNewBullet(bulletInfo) {
@@ -184,7 +183,6 @@ function createNewBullet(bulletInfo) {
     }
     var _bullet = document.createElement("div");
     _bullet.classList.add("bullet");
-    _bullet.classList.add(direction)
     _bullet.id = "bullet_" + bulletId
 
     const mazeContainer = document.getElementById("maze-container");
@@ -192,11 +190,10 @@ function createNewBullet(bulletInfo) {
 
     const x = Math.floor(position % 32);
     const y = Math.floor(position / 32);
-    console.log('type of x', x, y)
 
     _bullet.style.position = "absolute";
-    _bullet.style.left = (20 * x) + "px";
-    _bullet.style.top = (20 * y) + "px";
+    _bullet.style.left = (cellWidth * x + cellWidth/2) + "px" ;
+    _bullet.style.top = (cellWidth * y + cellWidth/2) + "px";
 
 }
 function updateScoreTable() {
@@ -214,6 +211,9 @@ function updateScoreTable() {
             <td>${competitor.Position}</td>
             <td>${competitor.Direction}</td>
         `;
+        if (currClientInfo.ID === competitor.ID) {
+            row.classList.add("scoreboard_row")
+        }
         tableBody.appendChild(row);
     }
 }
@@ -276,7 +276,7 @@ function displayStatusMessage(message) {
     statusDiv.appendChild(pElement);
 
     // Scroll to the bottom to show the latest message
-    //statusDiv.scrollTop = statusDiv.scrollHeight;
+    statusDiv.scrollTop = statusDiv.scrollHeight;
 }
 function removeOneClient(ID) {
 
@@ -311,8 +311,8 @@ function moveOneClient(clientInfo){
         console.log('type of x', typeof(x))
 
         _user.style.position = "absolute";
-        _user.style.left = (20 * x) + "px";
-        _user.style.top = (20 * y) + "px";
+        _user.style.left = (cellWidth * x) + "px";
+        _user.style.top = (cellWidth * y) + "px";
         if(_user.classList.contains("Left")){
             _user.classList.remove("Left");
         }
@@ -339,21 +339,8 @@ function moveOneBullet(bulletInfo){
         console.log('type of x', typeof(x))
 
         _bullet.style.position = "absolute";
-        _bullet.style.left = (20 * x) + "px";
-        _bullet.style.top = (20 * y) + "px";
-        // if(_bullet.classList.contains("Left")){
-        //     _bullet.classList.remove("Left");
-        // }
-        // if(_bullet.classList.contains("Right")){
-        //     _bullet.classList.remove("Right");
-        // }
-        // if(_bullet.classList.contains("Up")){
-        //     _bullet.classList.remove("Up");
-        // }
-        // if(_bullet.classList.contains("Down")){
-        //     _bullet.classList.remove("Down");
-        // }
-        //_bullet.classList.add(bulletInfo.Direction)
+        _bullet.style.left = (cellWidth * x + cellWidth/2) + "px";
+        _bullet.style.top = (cellWidth * y + cellWidth/2) + "px";
     }
 }
 document.addEventListener("DOMContentLoaded", function() {
@@ -361,7 +348,7 @@ document.addEventListener("DOMContentLoaded", function() {
     let movingInProgress = false;
     // Event listener for arrow key presses
     document.addEventListener("keydown", event => {
-        const step = 20;
+        const step = cellWidth;
         const currentPosition = currClientInfo.Position
         const direction = event.key.slice(5,event.key.length)
         var keyType;

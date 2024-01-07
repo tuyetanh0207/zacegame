@@ -486,7 +486,7 @@ func handleClientMessage(client *Client, message []byte) {
 
 					BroadcastMessage(bulletInfo.ClientID, removeOneBulletMessage, false)
 					competitors[clientInfo.ID].BulletCooldown = 0
-					statusContent := "User " + strconv.Itoa(clientInfo.ID) + "has just killed user " + strconv.Itoa(killedCompetitor.ID)
+					statusContent := "User " + strconv.Itoa(clientInfo.ID) + " has just killed user " + strconv.Itoa(killedCompetitor.ID)
 					killEnemyStatusMessage := UpdatingStatusMessage{
 						Type:          "updateStatus",
 						StatusContent: statusContent,
