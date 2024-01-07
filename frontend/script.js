@@ -14,6 +14,7 @@ socket.onopen = () => {
 var solidIndexes
 var currClientInfo
 var competitors
+var bulletCount =0;
 socket.onmessage = (event) => {
     const message = JSON.parse(event.data)
     console.log('message: ', message)
@@ -28,16 +29,72 @@ socket.onmessage = (event) => {
     output.scrollTop = output.scrollHeight; // Auto-scroll to the bottom
     if(messageType === "assignPositionForNewClient") {
         const matrix = message.matrix.matrix;
+        const bullets = message.bullets
         solidIndexes = new Set(matrix)
         currClientInfo = clientInfo
         competitors = message.competitors
-         createMaze();
-         createUser(ID, currentPosition, clientInfo.Direction);
+
+        createMaze();
+        updateScoreTable();
+        createUser(ID, currentPosition, clientInfo.Direction);
+        // console.log('first message')
+        for (const competitor of Object.values(competitors)) {
+            // console.log('competitor', competitor)
+            createUser(competitor.ID, competitor.Position, competitor.Direction);
+        }
+        if (bullets && bullets.length) {
+            for (let i = 0; i < bullets.length; i++) {
+                createNewBullet(bullets[i]);
+            }
+        } else {
+            console.error('Bullets array is null or empty.');
+        }
+     
     }
     if(messageType === "hasNewClient") {
-        console.log('hasnewclient')
-         createUser(ID, currentPosition, clientInfo.Direction);
+        console.log('hasNewClient')
+        createUser(ID, currentPosition, clientInfo.Direction);
+        insertScoreTable(clientInfo)
+        competitors[clientInfo.ID]= clientInfo;
     }    
+    if(messageType === "removeOneClient") {
+        console.log('removeOneClient')
+        removeOneClient(ID);
+        deleteRowInScoreTable(clientInfo); 
+    }   
+    //
+    if(messageType === "moveOneClient") {
+        console.log('moveOneClient')
+        moveOneClient(clientInfo)
+        competitors[clientInfo.ID].Position=clientInfo.Position
+        competitors[clientInfo.ID].Direction=clientInfo.Direction
+        
+    }  
+    if(messageType === "hasNewBullet") {
+        console.log('hasNewBullet')
+        const bulletInfo = message.bulletInfo;
+        createNewBullet(bulletInfo)
+        
+    }  
+    if(messageType === "removeOneBullet") {
+        console.log('removeOneBullet')
+        const bulletInfo = message.bulletInfo;
+        removeOneBullet(bulletInfo.ID)
+    }  
+    if(messageType === "moveOneBullet") {
+        console.log('moveOneBullet')
+        const bulletInfo = message.bulletInfo;
+        moveOneBullet(bulletInfo)
+    }  
+    if(messageType === "updateScoreOfOneClient") {
+        console.log('updateScoreOfOneClient')
+        updateRowInScoreTable(clientInfo)
+    }  
+    //updateStatus
+    if(messageType === "updateStatus") {
+        console.log('updateStatus')
+        updateRowInScoreTable(clientInfo)
+    }  
     return false;  
 
 }
@@ -57,13 +114,7 @@ socket.onerror = (event) => {
 
 }
 
-// document.getElementById("message-form").addEventListener("submit", (event) =>{
-//     event.preventDefault();
-//     const messageInput = document.getElementById("message");
-//     const message = messageInput.value;
-//     socket.send(message);
-//     messageInput.value="";
-// })
+
 function createMaze() {
  
     const mazeContainer = document.getElementById("maze");
@@ -82,65 +133,298 @@ function createMaze() {
     }
 }
 function createUser(ID, position, direction) {
+    const userId = "user_" + ID;
+    const oldUser = document.getElementById(userId)
+    if (oldUser) {
+        oldUser.remove()
+    }
     var _user = document.createElement("div");
     _user.classList.add("user");
     _user.classList.add(direction)
-    _user.id = "user_" + ID;
-   // _user.innerHTML = `<p>${ID}</p>`;
+    _user.id = userId
+
     const mazeContainer = document.getElementById("maze-container");
     mazeContainer.appendChild(_user);
 
     const x = Math.floor(position % 32);
     const y = Math.floor(position / 32);
     console.log('type of x', typeof(x))
-    // console.log("x: " + x + " y: " + y);
-    // console.log("x: " + x + " y: " + y);
-    // console.log("x*20")
+
     _user.style.position = "absolute";
     _user.style.left = (20 * x) + "px";
     _user.style.top = (20 * y) + "px";
 
 }
+function createNewBullet(bulletInfo) {
 
+    const bulletId = bulletInfo.ID;
+    const position = bulletInfo.Position;
+    const direction = bulletInfo.Direction;
+    const oldBullet = document.getElementById(bulletId)
+    if (oldBullet) {
+        oldBullet.remove()
+    }
+    var _bullet = document.createElement("div");
+    _bullet.classList.add("bullet");
+    _bullet.classList.add(direction)
+    _bullet.id = "bullet_" + bulletId
 
+    const mazeContainer = document.getElementById("maze-container");
+    mazeContainer.appendChild(_bullet);
+
+    const x = Math.floor(position % 32);
+    const y = Math.floor(position / 32);
+    console.log('type of x', x, y)
+
+    _bullet.style.position = "absolute";
+    _bullet.style.left = (20 * x) + "px";
+    _bullet.style.top = (20 * y) + "px";
+
+}
+function updateScoreTable() {
+    const tableBody = document.querySelector('#scoreTable tbody');
+    tableBody.innerHTML = ''; // Clear existing rows
+
+    // Iterate over the values of the competitors object
+    for (const competitor of Object.values(competitors)) {
+        const rowId = "rowScore_" + competitor.ID
+        const row = document.createElement('tr');
+        row.id= rowId;
+        row.innerHTML = `
+            <td>${competitor.ID}</td>
+            <td>${competitor.Score}</td>
+            <td>${competitor.Position}</td>
+            <td>${competitor.Direction}</td>
+        `;
+        tableBody.appendChild(row);
+    }
+}
+function insertScoreTable(clientInfo) {
+    const tableBody = document.querySelector('#scoreTable tbody');
+    tableBody.innerHTML = ''; // Clear existing rows
+    const row = document.createElement('tr');
+    const rowId = "rowScore_" + competitors.ID
+    row.id = rowId;
+    row.innerHTML = `
+        <td>${clientInfo.ID}</td>
+        <td>${clientInfo.Score}</td>
+        <td>${clientInfo.Position}</td>
+        <td>${clientInfo.Direction}</td>
+    `;
+    tableBody.appendChild(row);
+}
+function updateRowInScoreTable(clientInfo) {
+    const rowId = "rowScore_" + clientInfo.ID
+    const row = document.getElementById(rowId);
+    if (row) {
+        // Update the content of the existing row
+        row.innerHTML = `
+            <td>${clientInfo.ID}</td>
+            <td>${clientInfo.Score}</td>
+            <td>${clientInfo.Position}</td>
+            <td>${clientInfo.Direction}</td>
+        `;
+    } else {
+        // Row doesn't exist, create a new row
+        const tableBody = document.querySelector('#scoreTable tbody');
+        const newRow = document.createElement('tr');
+        newRow.id = rowId;
+        newRow.innerHTML = `
+            <td>${clientInfo.ID}</td>
+            <td>${clientInfo.Score}</td>
+            <td>${clientInfo.Position}</td>
+            <td>${clientInfo.Direction}</td>
+        `;
+        tableBody.appendChild(newRow);
+    }
+}
+function deleteRowInScoreTable(clientInfo) {
+    const rowId = "rowScore_" + competitors.ID
+    const row = document.getElementById(rowId);
+    if(row){
+        row.remove();
+    }
+   
+}
+function removeOneClient(ID) {
+
+    const userId = "user_" + ID;
+    const user = document.getElementById(userId);
+
+    if (user) {
+        console.log('remove one client')
+        user.remove();
+    } else {
+        console.error(`Element with ID ${userId} not found.`);
+    }
+}
+function removeOneBullet(ID) {
+    const bulletId = "bullet_" + ID;
+    const bullet = document.getElementById(bulletId);
+
+    if (bullet) {
+        console.log('remove one bullet')
+        bullet.remove();
+    } else {
+        console.error(`Element with ID ${bulletId} not found.`);
+    }
+}
+function moveOneClient(clientInfo){
+    const userId = "user_" + clientInfo.ID;
+    const _user = document.getElementById(userId)
+    if (_user) {
+        const position = clientInfo.Position;
+        const x = Math.floor(position % 32);
+        const y = Math.floor(position / 32);
+        console.log('type of x', typeof(x))
+
+        _user.style.position = "absolute";
+        _user.style.left = (20 * x) + "px";
+        _user.style.top = (20 * y) + "px";
+        if(_user.classList.contains("Left")){
+            _user.classList.remove("Left");
+        }
+        if(_user.classList.contains("Right")){
+            _user.classList.remove("Right");
+        }
+        if(_user.classList.contains("Up")){
+            _user.classList.remove("Up");
+        }
+        if(_user.classList.contains("Down")){
+            _user.classList.remove("Down");
+        }
+        _user.classList.add(clientInfo.Direction)
+    }
+}
+function moveOneBullet(bulletInfo){
+    const bulletId = "bullet_" + bulletInfo.ID;
+    const _bullet = document.getElementById(bulletId)
+    console.log('bulletId', bulletId)
+    if (_bullet) {
+        const position = bulletInfo.Position;
+        const x = Math.floor(position % 32);
+        const y = Math.floor(position / 32);
+        console.log('type of x', typeof(x))
+
+        _bullet.style.position = "absolute";
+        _bullet.style.left = (20 * x) + "px";
+        _bullet.style.top = (20 * y) + "px";
+        // if(_bullet.classList.contains("Left")){
+        //     _bullet.classList.remove("Left");
+        // }
+        // if(_bullet.classList.contains("Right")){
+        //     _bullet.classList.remove("Right");
+        // }
+        // if(_bullet.classList.contains("Up")){
+        //     _bullet.classList.remove("Up");
+        // }
+        // if(_bullet.classList.contains("Down")){
+        //     _bullet.classList.remove("Down");
+        // }
+        //_bullet.classList.add(bulletInfo.Direction)
+    }
+}
 document.addEventListener("DOMContentLoaded", function() {
    
     // Event listener for arrow key presses
     document.addEventListener("keydown", event => {
-        event.preventDefault();
         const step = 20;
         const currentPosition = currClientInfo.Position
         const direction = event.key.slice(5,event.key.length)
-        if(!isPositionOccupiedByCompetitor(determineNewPositionByDirection(currentPosition, direction), competitors)
+        var keyType;
+        if(!isPositionOccupiedByCompetitor(determineNewPositionByDirection(currentPosition, direction))
         && !isPositionOccupiedByWall(currentPosition, direction)) {
             const oldDirection = currClientInfo.Direction;
+           
             switch (event.key) {
             
                 case "ArrowLeft":
                     moveLeft(step, oldDirection);
+                    keyType ="Move"
                     break;
                 case "ArrowRight":
                     moveRight(step, oldDirection);
+                    keyType ="Move"
                     break;
                 case "ArrowUp":
                     moveUp(step, oldDirection);
+                    keyType ="Move"
                     break;
                 case "ArrowDown":
                     moveDown(step, oldDirection);
+                    keyType ="Move"
                     break;
+                case "Spacebar" || "Space" || 32:
+                    // Handle space bar
+                   
+                    break;
+                case "Q":
+                    // Handle Q key
+                    keyType = "Quit";
+                    break;   
+                default:
+                // Handle Q key
+                    console.log('Cannot recognize action')
+                    break;    
             }
-            currClientInfo.Position = determineNewPositionByDirection(currentPosition, direction); 
+            if (keyType=="Move"){
+                currClientInfo.Position = determineNewPositionByDirection(currentPosition, direction); 
+                currClientInfo.Direction = direction;
+                const message = {
+                    type: "clientRequestMoving",
+                    clientInfo: currClientInfo
+                }
+                socket.send(JSON.stringify(message));
+            }
+          
            
-            currClientInfo.Direction = direction;
         }
        
         event.preventDefault();
      
     });
+    document.addEventListener('keyup', event => {
+        if (event.code === 'Space') {
+          console.log('Space pressed')
+          console.log('shoot')
+          if(isAllowedToShoot(currClientInfo)) { 
+              console.log('is allowed to shoot')
+              const bulletId =  bulletCount + currClientInfo.ID*100;
+              const bulletDirection = currClientInfo.Direction 
+              const bulletPosition = determineNewPositionByDirection(currClientInfo.Position, bulletDirection)
+              console.log('bullet info', bulletDirection); //bulletPosition
+              console.log('bullet info', bulletPosition); //
+              const bulletInfo = {
+                  ID: bulletCount,
+                  ClientID: currClientInfo.ID,
+                  Position: bulletPosition,
+                  Direction: bulletDirection
+              }
+              //createNewBullet(bulletInfo)
+              const clientRequestShootingMessage = {
+                  type: "clientRequestShooting",
+                  clientInfo: currClientInfo,
+                  bulletInfo: bulletInfo
+              }
+              socket.send(JSON.stringify(clientRequestShootingMessage));
+              bulletCount++;
+          }
+        }
+      })
     
 });
 
-
+function isAllowedToShoot (clientInfo){
+    const position = clientInfo.Position
+    const direction = clientInfo.Direction
+    const bulletCooldown = clientInfo.BulletCooldown
+    if (!isPositionOccupiedByCompetitor(position) 
+    && !isPositionOccupiedByWall(position, direction)
+    && bulletCooldown == 0
+    ){
+        return true;
+    }
+}
 function determineNewPositionByDirection(currPosition, direction){
     var newPosition
     switch(direction){
@@ -159,7 +443,7 @@ function determineNewPositionByDirection(currPosition, direction){
     }
     return newPosition;
 }
-function isPositionOccupiedByCompetitor(position, competitorsArray) {
+function isPositionOccupiedByCompetitor(position) {
     for (let i = 0; i < competitors.length; i++) {
       if (competitors[i].Position === position) {
         console.log('competitor position', competitors[i].Position);
