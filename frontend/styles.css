@@ -87,10 +87,15 @@ th {
     background-color: #f2f2f2;
 }
 
+
 #status {
     margin-top: 20px;
+    width: 400px;
+    height: 300px;
+    border: 1px solid #ccc;
+    overflow: auto;
+    padding: 10px;
 }
-
 #scoreboard {
     margin-top: 20px;
 }

@@ -1,6 +1,3 @@
-import { matrix1 } from "./matrix.js";
-console.log("Start of client script");
-console.log("Before WebSocket connection");
 const socket = new WebSocket("ws://localhost:8081/ws");
 console.log("After WebSocket connection");
 
@@ -14,12 +11,18 @@ socket.onopen = () => {
 var solidIndexes
 var currClientInfo
 var competitors
-var bulletCount =0;
+var bulletCount = 0;
+var bulletCooldownTime= 2000
 socket.onmessage = (event) => {
     const message = JSON.parse(event.data)
     console.log('message: ', message)
-    const output = document.getElementById("output");
     const messageType = message.type
+    if(messageType === "updateStatus") {
+        console.log('updateStatus')
+        const statusContent = message.statusContent
+        displayStatusMessage(statusContent) 
+        
+    }  else {
     const clientInfo = message.clientInfo
     const ID = clientInfo.ID
     const currentPosition= clientInfo.Position
@@ -49,7 +52,7 @@ socket.onmessage = (event) => {
         } else {
             console.error('Bullets array is null or empty.');
         }
-     
+        
     }
     if(messageType === "hasNewClient") {
         console.log('hasNewClient')
@@ -73,6 +76,9 @@ socket.onmessage = (event) => {
     if(messageType === "hasNewBullet") {
         console.log('hasNewBullet')
         const bulletInfo = message.bulletInfo;
+        if(currClientInfo.ID === clientInfo.ID) {
+            // currClientInfo.BulletCooldown = clientInfo.BulletCooldown
+        }
         createNewBullet(bulletInfo)
         
     }  
@@ -84,30 +90,40 @@ socket.onmessage = (event) => {
     if(messageType === "moveOneBullet") {
         console.log('moveOneBullet')
         const bulletInfo = message.bulletInfo;
+        if(currClientInfo.ID === clientInfo.ID) {
+            //  currClientInfo.BulletCooldown = clientInfo.BulletCooldown
+        }
         moveOneBullet(bulletInfo)
     }  
     if(messageType === "updateScoreOfOneClient") {
         console.log('updateScoreOfOneClient')
+
         updateRowInScoreTable(clientInfo)
+        competitors[clientInfo.ID]= clientInfo;
+        if (clientInfo.ID == currClientInfo.ID) {
+            currClientInfo.Score = clientInfo.Score
+        }
     }  
-    //updateStatus
-    if(messageType === "updateStatus") {
-        console.log('updateStatus')
-        updateRowInScoreTable(clientInfo)
-    }  
-    return false;  
-
-}
-
-socket.onclose = (event) => {
-    if(event.wasClean) {
-        console.log(`Closed cleanly, code = ${event.code}, reason = ${event.reason}`);
-
-    }else {
-        console.log("Connection died");
-
+    
     }
+    
+  
+    //return false;  
+
 }
+socket.onclose = (event) => {
+    console.log('WebSocket connection closed:', event.code, event.reason);
+  };
+// socket.onclose = (event) => {
+  
+//     // if(event.wasClean) {
+//     //     console.log(`Closed cleanly, code = ${event.code}, reason = ${event.reason}`);
+
+//     // }else {
+//     //     console.log("Connection died");
+
+//     // }
+// }
 
 socket.onerror = (event) => {
     console.log(`WebSocket connection error: ${event}`);
@@ -201,9 +217,9 @@ function updateScoreTable() {
 }
 function insertScoreTable(clientInfo) {
     const tableBody = document.querySelector('#scoreTable tbody');
-    tableBody.innerHTML = ''; // Clear existing rows
+    //tableBody.innerHTML = ''; // Clear existing rows
     const row = document.createElement('tr');
-    const rowId = "rowScore_" + competitors.ID
+    const rowId = "rowScore_" + clientInfo.ID
     row.id = rowId;
     row.innerHTML = `
         <td>${clientInfo.ID}</td>
@@ -239,12 +255,26 @@ function updateRowInScoreTable(clientInfo) {
     }
 }
 function deleteRowInScoreTable(clientInfo) {
-    const rowId = "rowScore_" + competitors.ID
+    const rowId = "rowScore_" + clientInfo.ID
     const row = document.getElementById(rowId);
     if(row){
         row.remove();
     }
    
+}
+function displayStatusMessage(message) {
+    // Create a new <p> element
+    var pElement = document.createElement("p");
+    pElement.textContent = message;
+
+    // Get the status div
+    var statusDiv = document.getElementById("status");
+
+    // Append the <p> element to the status div
+    statusDiv.appendChild(pElement);
+
+    // Scroll to the bottom to show the latest message
+    //statusDiv.scrollTop = statusDiv.scrollHeight;
 }
 function removeOneClient(ID) {
 
@@ -325,7 +355,7 @@ function moveOneBullet(bulletInfo){
     }
 }
 document.addEventListener("DOMContentLoaded", function() {
-   
+    let shootingInProgress = false;
     // Event listener for arrow key presses
     document.addEventListener("keydown", event => {
         const step = 20;
@@ -335,7 +365,6 @@ document.addEventListener("DOMContentLoaded", function() {
         if(!isPositionOccupiedByCompetitor(determineNewPositionByDirection(currentPosition, direction))
         && !isPositionOccupiedByWall(currentPosition, direction)) {
             const oldDirection = currClientInfo.Direction;
-           
             switch (event.key) {
             
                 case "ArrowLeft":
@@ -354,11 +383,8 @@ document.addEventListener("DOMContentLoaded", function() {
                     moveDown(step, oldDirection);
                     keyType ="Move"
                     break;
-                case "Spacebar" || "Space" || 32:
-                    // Handle space bar
-                   
-                    break;
-                case "Q":
+                case "Q" || "q":
+                    console.log('quit')
                     // Handle Q key
                     keyType = "Quit";
                     break;   
@@ -374,8 +400,16 @@ document.addEventListener("DOMContentLoaded", function() {
                     type: "clientRequestMoving",
                     clientInfo: currClientInfo
                 }
-                socket.send(JSON.stringify(message));
+                while (true){
+                    if(!shootingInProgress){
+                        socket.send(JSON.stringify(message));
+                        break;
+                    }
+                 
+                }
+               
             }
+           
           
            
         }
@@ -383,33 +417,65 @@ document.addEventListener("DOMContentLoaded", function() {
         event.preventDefault();
      
     });
+    
     document.addEventListener('keyup', event => {
         if (event.code === 'Space') {
-          console.log('Space pressed')
-          console.log('shoot')
-          if(isAllowedToShoot(currClientInfo)) { 
-              console.log('is allowed to shoot')
-              const bulletId =  bulletCount + currClientInfo.ID*100;
-              const bulletDirection = currClientInfo.Direction 
-              const bulletPosition = determineNewPositionByDirection(currClientInfo.Position, bulletDirection)
-              console.log('bullet info', bulletDirection); //bulletPosition
-              console.log('bullet info', bulletPosition); //
-              const bulletInfo = {
-                  ID: bulletCount,
-                  ClientID: currClientInfo.ID,
-                  Position: bulletPosition,
-                  Direction: bulletDirection
-              }
-              //createNewBullet(bulletInfo)
-              const clientRequestShootingMessage = {
-                  type: "clientRequestShooting",
-                  clientInfo: currClientInfo,
-                  bulletInfo: bulletInfo
-              }
-              socket.send(JSON.stringify(clientRequestShootingMessage));
-              bulletCount++;
-          }
+        //shootingInProgress = false;
+            console.log('Space pressed')
+            console.log('shoot')
+            console.log('bullet cooldown', currClientInfo.BulletCooldown);
+            if (!shootingInProgress && isAllowedToShoot(currClientInfo)) {
+                shootingInProgress = true;
+                console.log('is allowed to shoot')
+                const bulletId =  bulletCount + currClientInfo.ID*100;
+                const bulletDirection = currClientInfo.Direction 
+                const bulletPosition = determineNewPositionByDirection(currClientInfo.Position, bulletDirection)
+                console.log('bullet info', bulletDirection); //bulletPosition
+                console.log('bullet info', bulletPosition); //
+                const bulletInfo = {
+                    ID: bulletId,
+                    ClientID: currClientInfo.ID,
+                    Position: bulletPosition,
+                    Direction: bulletDirection
+                }
+                //createNewBullet(bulletInfo)
+                const clientRequestShootingMessage = {
+                    type: "clientRequestShooting",
+                    clientInfo: currClientInfo,
+                    bulletInfo: bulletInfo
+                }
+                
+                socket.send(JSON.stringify(clientRequestShootingMessage));
+                //currClientInfo.BulletCooldown = 4;
+
+                const operationTimeout = setTimeout(() => {
+                console.log("Timeout exceeded. Operation aborted.");
+                shootingInProgress = false;
+                currClientInfo.BulletCooldown = 0;
+                }, bulletCooldownTime);
+                
+                // Simulate the operation (replace with your actual code)
+                // Clear the timeout to prevent it from triggering
+
+                bulletCount++;
+            
+        
+            } else {
+                console.log('Cannot shoot. Cooldown in progress.');
+            }
+
+
+
         }
+        if (event.code==="Q"){
+            console.log('want to quiet')
+            const message = {
+                type: "clientRequestLoggingOut",
+                clientInfo: currClientInfo
+            }
+            socket.send(JSON.stringify(message));
+        }
+
       })
     
 });
@@ -424,6 +490,7 @@ function isAllowedToShoot (clientInfo){
     ){
         return true;
     }
+    return false
 }
 function determineNewPositionByDirection(currPosition, direction){
     var newPosition
