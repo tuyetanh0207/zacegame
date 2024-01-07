@@ -441,7 +441,7 @@ func handleClientMessage(client *Client, message []byte) {
 					BroadcastMessage(bulletInfo.ClientID, moveOneBulletMessage, false)
 					
 				}
-				time.Sleep(200 * time.Millisecond)
+				time.Sleep(100 * time.Millisecond)
 				if isAllowedMoveBullet == "isEncounteringCompetitor" {
 					log.Print(encountedCompetitorID)
 					// random new position

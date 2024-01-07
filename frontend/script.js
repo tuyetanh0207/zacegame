@@ -12,7 +12,9 @@ var solidIndexes
 var currClientInfo
 var competitors
 var bulletCount = 0;
-var bulletCooldownTime= 2000
+var clientCooldownTime = 200
+var bulletCooldownTime = clientCooldownTime * 6
+
 socket.onmessage = (event) => {
     const message = JSON.parse(event.data)
     console.log('message: ', message)
@@ -356,6 +358,7 @@ function moveOneBullet(bulletInfo){
 }
 document.addEventListener("DOMContentLoaded", function() {
     let shootingInProgress = false;
+    let movingInProgress = false;
     // Event listener for arrow key presses
     document.addEventListener("keydown", event => {
         const step = 20;
@@ -363,7 +366,11 @@ document.addEventListener("DOMContentLoaded", function() {
         const direction = event.key.slice(5,event.key.length)
         var keyType;
         if(!isPositionOccupiedByCompetitor(determineNewPositionByDirection(currentPosition, direction))
-        && !isPositionOccupiedByWall(currentPosition, direction)) {
+        && !isPositionOccupiedByWall(currentPosition, direction)
+        && !shootingInProgress 
+         && !movingInProgress
+        ) {
+            movingInProgress = true;
             const oldDirection = currClientInfo.Direction;
             switch (event.key) {
             
@@ -401,7 +408,12 @@ document.addEventListener("DOMContentLoaded", function() {
                     clientInfo: currClientInfo
                 }
                 while (true){
-                    if(!shootingInProgress){
+                    if(!shootingInProgress) {
+                        
+                        const operationTimeout = setTimeout(() => {
+                            movingInProgress = false
+                            console.log("Timeout exceed in Moving")
+                        }, clientCooldownTime);
                         socket.send(JSON.stringify(message));
                         break;
                     }
