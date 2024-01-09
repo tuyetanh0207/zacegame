@@ -130,13 +130,12 @@ func containsElement(arr []int, target int) bool {
 	return index < len(arr) && arr[index] == target
 }
 func isCurrentPositionOccupiedByWall(currPosition int) bool {
-	// log.Printf("Direction: %s\n", direction)
 	return containsElement(matrix.Positions, currPosition) || currPosition < 0 || currPosition >= 32*16
 }
 func isNewPositionOccupiedByWall(currPosition int, direction string) bool {
-	// log.Printf("Direction: %s\n", direction)
+
 	newPosition := determineNewPositionByDirection(currPosition, direction)
-	// log.Printf("New Position: %d\n", newPosition)
+
 
 	switch direction {
 	case "Up":
@@ -275,12 +274,9 @@ func updateOneBulletInArray(bullet Bullet) int {
 }
 func isAllowedToShoot(clientInfo Competitor) bool {
 	position := clientInfo.Position
-	// direction := clientInfo.Direction
 	bulletCooldown := clientInfo.BulletCooldown
 	ok, _ := isPositionOccupiedByCompetitor(position, clientInfo.ID)
-	// log.Println("need ")
-	// log.Println("ok, kk", ok, kk)
-	// log.Println("isCurrentPositionOccupiedByWall", isCurrentPositionOccupiedByWall(position))
+
 	log.Println("bulletCooldown", bulletCooldown)
 	if !ok && !isCurrentPositionOccupiedByWall(position) && bulletCooldown == 0 {
 
@@ -318,7 +314,6 @@ func removeBulletByID(bullets []Bullet, idToRemove int) []Bullet {
 }
 var counthandleClientMessage = 0
 func handleClientMessage(client *Client, message []byte) {
-	log.Println("counthandle client message", counthandleClientMessage)
 	var rawData map[string]interface{}
 	if err := json.Unmarshal(message, &rawData); err != nil {
 		log.Printf("Error unmarshalling JSON from client: %v\n", err)
@@ -393,12 +388,11 @@ func handleClientMessage(client *Client, message []byte) {
 			break
 		}
 		if isAllowedToShoot(clientInfo) {
-			log.Println("updateScoreOfOneClient shoot before",competitors[clientInfo.ID].Score )
+
 			clientInfo.Score = competitors[clientInfo.ID].Score - 1
 			clientInfo.BulletCooldown = competitors[clientInfo.ID].BulletCooldown + 4
 			competitors[clientInfo.ID].Score = clientInfo.Score
 			competitors[clientInfo.ID].BulletCooldown  = clientInfo.BulletCooldown
-			log.Println("updateScoreOfOneClient shoot after before",competitors[clientInfo.ID].Score )
 			hasNewBulletMessage := UpdatingBulletInfoMessage{
 				Type:       "hasNewBullet",
 				ClientInfo: clientInfo,
@@ -406,7 +400,6 @@ func handleClientMessage(client *Client, message []byte) {
 			}
 
 			bullets = append(bullets, bulletInfo)
-			log.Println("BulletInfo", bullets)
 			//
 			
 			updateScoreOfShooterMessage := UpdatingCompetitorInfoMessage{
@@ -419,7 +412,6 @@ func handleClientMessage(client *Client, message []byte) {
 				StatusContent: statusContent,
 			}
 			BroadcastMessage(clientInfo.ID, hasNewBulletStatusMessage, false)
-			log.Println("Updating status", statusContent)
 			BroadcastMessage(clientInfo.ID, hasNewBulletMessage, false)
 			BroadcastMessage(clientInfo.ID, updateScoreOfShooterMessage, false)
 			//
@@ -443,7 +435,6 @@ func handleClientMessage(client *Client, message []byte) {
 				}
 				time.Sleep(100 * time.Millisecond)
 				if isAllowedMoveBullet == "isEncounteringCompetitor" {
-					log.Print(encountedCompetitorID)
 					// random new position
 					randomPosition, randomDirection := randomPositionForClient()
 					killedCompetitor := competitors[encountedCompetitorID]
@@ -458,10 +449,8 @@ func handleClientMessage(client *Client, message []byte) {
 					
 
 					// update score  updateScoreOfOneClient
-					log.Println("updateScoreOfOneClient before",competitors[clientInfo.ID].Score )
 					clientInfo.Score = competitors[clientInfo.ID].Score + 11
 					competitors[clientInfo.ID].Score = clientInfo.Score
-					log.Println("updateScoreOfOneClient after",competitors[clientInfo.ID].Score )
 				
 					updateScoreOfWinnerMessage := UpdatingCompetitorInfoMessage{
 						Type:       "updateScoreOfOneClient",
@@ -477,7 +466,6 @@ func handleClientMessage(client *Client, message []byte) {
 					BroadcastMessage(encountedCompetitorID, updateKilledCompetitorPositionMessage, false)
 					// remove one bullet
 					bullets = removeBulletByID(bullets, bulletInfo.ID)
-					log.Println("remove Bullets", bullets)
 					removeOneBulletMessage := UpdatingBulletInfoMessage{
 						Type:       "removeOneBullet",
 						ClientInfo: clientInfo,
@@ -493,15 +481,13 @@ func handleClientMessage(client *Client, message []byte) {
 					}
 
 					BroadcastMessage(clientInfo.ID, killEnemyStatusMessage, false)
-					log.Println("Updating status", statusContent)
 					return
 				}
 				if isAllowedMoveBullet == "isEncounteringWall" {
 					//removeOneBullet
-					log.Println("remove Bullets yet", bullets)
-					log.Println("bullet ID", bulletInfo.ID)
+
 					bullets = removeBulletByID(bullets, bulletInfo.ID)
-					log.Println("remove Bullets", bullets)
+				
 					removeOneBulletMessage := UpdatingBulletInfoMessage{
 						Type:       "removeOneBullet",
 						ClientInfo: clientInfo,
@@ -528,9 +514,7 @@ func handleClientMessage(client *Client, message []byte) {
 
 	counthandleClientMessage = counthandleClientMessage + 1
 }
-func isCompetitorNil(comp *Competitor) bool {
-    return comp == nil || (comp.ID == 0 && comp.Position == 0 && comp.Score == 0 && comp.Status == "" && comp.Direction == "" && comp.BulletCooldown == 0 && comp.Color == "")
-}
+
 func handleClientDisconnect(clientInfo Competitor) {
 	//if(!isCompetitorNil(&clientInfo)){
 		log.Printf("Client %d disconnected in handleConnections\n", clientInfo.ID)
@@ -545,7 +529,6 @@ func handleClientDisconnect(clientInfo Competitor) {
 		}
 		BroadcastMessage(clientInfo.ID, removeOneClientMessage, true)
 		statusContent := "User " + strconv.Itoa(clientInfo.ID) + " has just logged out. "
-		log.Println("Updating status", statusContent)
 		logOutStatusMessage := UpdatingStatusMessage{
 			Type:          "updateStatus",
 			StatusContent: statusContent,
@@ -654,8 +637,7 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 	go handleClient(client)
 	BroadcastMessage(client.ID, updatingCompetitorInfoMessage, true)
 	BroadcastMessage(client.ID, updatingHasNewClientInStatusMessage, true)
-	
-	log.Println("Updating status", statusContent)
+
 	defer func() {
 		if r := recover(); r != nil {
 			log.Printf("Panic recovered: %v", r)
@@ -673,7 +655,7 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 				return
 			} else {
 				log.Printf("Error reading message from client %d: %v\n", client.ID, err)
-				//handleClientDisconnect(*competitors[client.ID])
+
 				return
 			}
 		}
@@ -692,10 +674,8 @@ func BroadcastMessage(exceptedClientID int, message Message, isExceptingOneClien
 
 	competitorsMutex.RLock()
 	defer competitorsMutex.RUnlock()
-	log.Println("broadcasting message to client")
-	log.Println("type message in broadcast message", message.GetType())
+
 	for _, client := range clients {
-		// log.Println("clients in broadcast", client)
 		// Check if the client is valid
 		if (isExceptingOneClient && client.ID == exceptedClientID){
 			continue
@@ -708,7 +688,7 @@ func BroadcastMessage(exceptedClientID int, message Message, isExceptingOneClien
 		default:
 			// Error sending message, close the channel and remove the client
 			log.Println("Error sending message in Broadcast")
-			//closeClient(client)
+
 		}
 	}
 

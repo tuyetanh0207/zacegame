@@ -17,10 +17,9 @@ var bulletCooldownTime = clientCooldownTime * 6
 var cellWidth = 30
 socket.onmessage = (event) => {
     const message = JSON.parse(event.data)
-    console.log('message: ', message)
+
     const messageType = message.type
     if(messageType === "updateStatus") {
-        console.log('updateStatus')
         const statusContent = message.statusContent
         displayStatusMessage(statusContent) 
         
@@ -28,8 +27,6 @@ socket.onmessage = (event) => {
     const clientInfo = message.clientInfo
     const ID = clientInfo.ID
     const currentPosition= clientInfo.Position
-    console.log('id', ID)
-    console.log(messageType, clientInfo.ID, currentPosition, ID, currentPosition)
     
     if(messageType === "assignPositionForNewClient") {
         const matrix = message.matrix.matrix;
@@ -78,7 +75,7 @@ socket.onmessage = (event) => {
         console.log('hasNewBullet')
         const bulletInfo = message.bulletInfo;
         if(currClientInfo.ID === clientInfo.ID) {
-            // currClientInfo.BulletCooldown = clientInfo.BulletCooldown
+
         }
         createNewBullet(bulletInfo)
         
@@ -92,7 +89,7 @@ socket.onmessage = (event) => {
         console.log('moveOneBullet')
         const bulletInfo = message.bulletInfo;
         if(currClientInfo.ID === clientInfo.ID) {
-            //  currClientInfo.BulletCooldown = clientInfo.BulletCooldown
+
         }
         moveOneBullet(bulletInfo)
     }  
@@ -115,16 +112,7 @@ socket.onmessage = (event) => {
 socket.onclose = (event) => {
     console.log('WebSocket connection closed:', event.code, event.reason);
   };
-// socket.onclose = (event) => {
-  
-//     // if(event.wasClean) {
-//     //     console.log(`Closed cleanly, code = ${event.code}, reason = ${event.reason}`);
 
-//     // }else {
-//     //     console.log("Connection died");
-
-//     // }
-// }
 
 socket.onerror = (event) => {
     console.log(`WebSocket connection error: ${event}`);
@@ -165,7 +153,6 @@ function createUser(ID, position, direction) {
 
     const x = Math.floor(position % 32);
     const y = Math.floor(position / 32);
-    console.log('type of x', typeof(x))
 
     _user.style.position = "absolute";
     _user.style.left = (cellWidth * x) + "px";
@@ -284,7 +271,6 @@ function removeOneClient(ID) {
     const user = document.getElementById(userId);
 
     if (user) {
-        console.log('remove one client')
         user.remove();
     } else {
         console.error(`Element with ID ${userId} not found.`);
@@ -295,7 +281,6 @@ function removeOneBullet(ID) {
     const bullet = document.getElementById(bulletId);
 
     if (bullet) {
-        console.log('remove one bullet')
         bullet.remove();
     } else {
         console.error(`Element with ID ${bulletId} not found.`);
@@ -331,7 +316,6 @@ function moveOneClient(clientInfo){
 function moveOneBullet(bulletInfo){
     const bulletId = "bullet_" + bulletInfo.ID;
     const _bullet = document.getElementById(bulletId)
-    console.log('bulletId', bulletId)
     if (_bullet) {
         const position = bulletInfo.Position;
         const x = Math.floor(position % 32);
@@ -378,12 +362,10 @@ document.addEventListener("DOMContentLoaded", function() {
                     keyType ="Move"
                     break;
                 case "Q" || "q":
-                    console.log('quit')
                     // Handle Q key
                     keyType = "Quit";
                     break;   
                 default:
-                // Handle Q key
                     console.log('Cannot recognize action')
                     break;    
             }
@@ -420,17 +402,11 @@ document.addEventListener("DOMContentLoaded", function() {
     document.addEventListener('keyup', event => {
         if (event.code === 'Space') {
         //shootingInProgress = false;
-            console.log('Space pressed')
-            console.log('shoot')
-            console.log('bullet cooldown', currClientInfo.BulletCooldown);
             if (!shootingInProgress && isAllowedToShoot(currClientInfo)) {
                 shootingInProgress = true;
-                console.log('is allowed to shoot')
                 const bulletId =  bulletCount + currClientInfo.ID*100;
                 const bulletDirection = currClientInfo.Direction 
                 const bulletPosition = determineNewPositionByDirection(currClientInfo.Position, bulletDirection)
-                console.log('bullet info', bulletDirection); //bulletPosition
-                console.log('bullet info', bulletPosition); //
                 const bulletInfo = {
                     ID: bulletId,
                     ClientID: currClientInfo.ID,
@@ -467,7 +443,6 @@ document.addEventListener("DOMContentLoaded", function() {
 
         }
         if (event.code==="Q"){
-            console.log('want to quiet')
             const message = {
                 type: "clientRequestLoggingOut",
                 clientInfo: currClientInfo
@@ -512,7 +487,6 @@ function determineNewPositionByDirection(currPosition, direction){
 function isPositionOccupiedByCompetitor(position) {
     for (let i = 0; i < competitors.length; i++) {
       if (competitors[i].Position === position) {
-        console.log('competitor position', competitors[i].Position);
         return true; // Position is occupied
       }
     }
